@@ -60,11 +60,11 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'Simple Frame App Template',
+        title: 'Frame IMU Demo',
         theme: ThemeData.dark(),
         home: Scaffold(
           appBar: AppBar(
-              title: const Text('Simple Frame App Template'),
+              title: const Text('Frame IMU Demo'),
               actions: [getBatteryWidget()]),
           body: const Padding(
             padding: EdgeInsets.all(8.0),
