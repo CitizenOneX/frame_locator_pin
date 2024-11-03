@@ -68,7 +68,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
       // set up the RxIMU handler
       await imuStreamSubs?.cancel();
       imuStreamSubs = RxIMU().attach(frame!.dataResponse).listen((imuData) async {
-        _log.info(() => 'Raw: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
+        _log.fine(() => 'Raw: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
 
         // apply offsets learned through calibration
         final calibratedX = imuData.compass.$1 + _offsetX;
@@ -80,7 +80,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         final normAccelX = imuData.accel.$1 / accelFactor;
         final normAccelY = imuData.accel.$2 / accelFactor;
         final normAccelZ = imuData.accel.$3 / accelFactor;
-        _log.info(() => 'Calibrated: compass: (${calibratedX.toStringAsFixed(1)}, ${calibratedY.toStringAsFixed(1)}, ${calibratedZ.toStringAsFixed(1)}), accel: (${normAccelX.toStringAsFixed(1)}, ${normAccelY.toStringAsFixed(1)}, ${normAccelZ.toStringAsFixed(1)}), pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
+        _log.fine(() => 'Calibrated: compass: (${calibratedX.toStringAsFixed(1)}, ${calibratedY.toStringAsFixed(1)}, ${calibratedZ.toStringAsFixed(1)}), accel: (${normAccelX.toStringAsFixed(1)}, ${normAccelY.toStringAsFixed(1)}, ${normAccelZ.toStringAsFixed(1)}), pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
 
         final heading = CompassHeading.calculateTiltCompensatedHeading(
           magX: calibratedX,
@@ -101,7 +101,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
           _headingText = 'Heading: ${trueHeading.toStringAsFixed(1)}° $cardinal';
         });
 
-        _log.info(_headingText);
+        _log.fine(_headingText);
         await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: _headingText));
       });
 
@@ -158,7 +158,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
       // set up the RxIMU handler
       await imuStreamSubs?.cancel();
       imuStreamSubs = RxIMU().attach(frame!.dataResponse).listen((imuData) {
-        _log.info('Calibration IMU data: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
+        _log.fine('Calibration IMU data: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
         // feed the samples into the calibrator
         calibrator.addSample(imuData.compass.$1.toDouble(), imuData.compass.$2.toDouble(), imuData.compass.$3.toDouble());
         setState(() {
@@ -209,46 +209,48 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'Frame IMU Demo',
-        theme: ThemeData.dark(),
-        home: Scaffold(
-          appBar: AppBar(
-              title: const Text('Frame IMU Demo'),
-              actions: [getBatteryWidget()]),
-          body: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _offsetXController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'offset:X-axis', hintText: 'Magnetometer offset - X axis'),),
-                TextField(
-                  controller: _offsetYController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'offset:Y-axis', hintText: 'Magnetometer offset - Y axis'),),
-                TextField(
-                  controller: _offsetZController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'offset:Z-axis', hintText: 'Magnetometer offset - Z axis'),),
-                TextField(
-                  controller: _declinationController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'magnetic declination for your latitude/longitude', hintText: 'Magnetic Declination Estimate'),),
-                ElevatedButton(onPressed: _runCalibration, child: const Text('Calibrate Magnetometer')),
-                if (_calibrating) LinearProgressIndicator(value: _calibrationProgress),
-                const Divider(),
-                ElevatedButton(onPressed: _savePrefs, child: const Text('Save')),
-                const SizedBox(height: 24),
-                if (currentState == ApplicationState.running) Text(_headingText, style: const TextStyle(fontSize: 24)),
-                const Spacer(),
-              ],
-            ),
+      title: 'Frame IMU Demo',
+      theme: ThemeData.dark(),
+      home: Scaffold(
+        appBar: AppBar(
+            title: const Text('Frame IMU Demo'),
+            actions: [getBatteryWidget()]
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _offsetXController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'offset:X-axis', hintText: 'Magnetometer offset - X axis'),),
+              TextField(
+                controller: _offsetYController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'offset:Y-axis', hintText: 'Magnetometer offset - Y axis'),),
+              TextField(
+                controller: _offsetZController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'offset:Z-axis', hintText: 'Magnetometer offset - Z axis'),),
+              TextField(
+                controller: _declinationController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'magnetic declination for your latitude/longitude', hintText: 'Magnetic Declination Estimate'),),
+              ElevatedButton(onPressed: _runCalibration, child: const Text('Calibrate Magnetometer')),
+              if (_calibrating) LinearProgressIndicator(value: _calibrationProgress),
+              const Divider(),
+              ElevatedButton(onPressed: _savePrefs, child: const Text('Save')),
+              const SizedBox(height: 24),
+              if (currentState == ApplicationState.running) Text(_headingText, style: const TextStyle(fontSize: 24)),
+              const Spacer(),
+            ],
           ),
-          floatingActionButton: getFloatingActionButtonWidget(const Icon(Icons.north_east), const Icon(Icons.cancel)),
-          persistentFooterButtons: getFooterButtonsWidget(),
-        ));
+        ),
+        floatingActionButton: getFloatingActionButtonWidget(const Icon(Icons.north_east), const Icon(Icons.cancel)),
+        persistentFooterButtons: getFooterButtonsWidget(),
+      )
+    );
   }
 }
