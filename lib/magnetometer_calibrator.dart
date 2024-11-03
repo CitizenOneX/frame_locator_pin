@@ -45,9 +45,9 @@ class MagnetometerCalibrator {
     _calibrationComplete.add(offsets);
   }
 
-  // Get current progress percentage
+  // Get current progress 0.0 .. 1.0
   double getProgress() {
-    return (_sampleCount / _requiredSamples * 100).clamp(0.0, 100.0);
+    return (_sampleCount / _requiredSamples).clamp(0.0, 1.0);
   }
 
   // Reset calibration

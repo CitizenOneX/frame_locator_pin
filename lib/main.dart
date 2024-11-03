@@ -26,6 +26,8 @@ class MainApp extends StatefulWidget {
 /// SimpleFrameAppState mixin helps to manage the lifecycle of the Frame connection outside of this file
 class MainAppState extends State<MainApp> with SimpleFrameAppState {
   StreamSubscription<IMUData>? imuStreamSubs;
+  bool _calibrating = false;
+  double _calibrationProgress = 0.0;
 
   // magnetometer outputs need to be calibrated/zeroed with offsets
   double _offsetX = 0.0;
@@ -128,6 +130,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   Future<void> _runCalibration() async {
     setState(() {
       currentState = ApplicationState.running;
+      _calibrating = true;
     });
 
     try {
@@ -148,6 +151,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
 
         setState(() {
           currentState = ApplicationState.ready;
+          _calibrating = false;
         });
       });
 
@@ -157,7 +161,9 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         _log.info('Calibration IMU data: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
         // feed the samples into the calibrator
         calibrator.addSample(imuData.compass.$1.toDouble(), imuData.compass.$2.toDouble(), imuData.compass.$3.toDouble());
-        // TODO show progress on screen and setstate?
+        setState(() {
+          _calibrationProgress = calibrator.getProgress();
+        });
       });
 
       // kick off the frameside IMU streaming
@@ -232,6 +238,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'magnetic declination for your latitude/longitude', hintText: 'Magnetic Declination Estimate'),),
                 ElevatedButton(onPressed: _runCalibration, child: const Text('Calibrate Magnetometer')),
+                if (_calibrating) LinearProgressIndicator(value: _calibrationProgress),
+                const Divider(),
                 ElevatedButton(onPressed: _savePrefs, child: const Text('Save')),
                 const SizedBox(height: 24),
                 if (currentState == ApplicationState.running) Text(_headingText, style: const TextStyle(fontSize: 24)),
