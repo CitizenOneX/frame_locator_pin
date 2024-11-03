@@ -1,20 +1,34 @@
 local data = require('data.min')
 local battery = require('battery.min')
 local code = require('code.min')
-local sprite = require('sprite.min')
 local plain_text = require('plain_text.min')
 
 -- Phone to Frame flags
--- TODO sample messages only
-USER_SPRITE = 0x20
 TEXT_MSG = 0x12
 CLEAR_MSG = 0x10
+START_IMU_MSG = 0x40
+STOP_IMU_MSG = 0x41
+
+-- Frame to Phone flags
+IMU_DATA_MSG = 0x0A
 
 -- register the message parsers so they are automatically called when matching data comes in
-data.parsers[USER_SPRITE] = sprite.parse_sprite
-data.parsers[CLEAR_MSG] = code.parse_code
 data.parsers[TEXT_MSG] = plain_text.parse_plain_text
+data.parsers[CLEAR_MSG] = code.parse_code
+data.parsers[START_IMU_MSG] = code.parse_code
+data.parsers[STOP_IMU_MSG] = code.parse_code
 
+function pack_imu(msg_code, imu_data_raw)
+    -- Pack msg_code as an unsigned byte, one byte of padding, and then each 14-bit signed value as a 16-bit signed integer
+	-- TODO little endian? wouldn't both be big-endian?
+    return string.pack("<Bxhhhhhh", msg_code,
+		imu_data_raw.compass.x,
+		imu_data_raw.compass.y,
+		imu_data_raw.compass.z,
+		imu_data_raw.accelerometer.x,
+		imu_data_raw.accelerometer.y,
+		imu_data_raw.accelerometer.z)
+end
 
 -- Main app loop
 function app_loop()
@@ -22,6 +36,8 @@ function app_loop()
 	frame.display.text(" ", 1, 1)
 	frame.display.show()
     local last_batt_update = 0
+	local streaming = false
+	local stream_rate = 1
 
 	while true do
 		-- process any raw data items, if ready
@@ -41,15 +57,6 @@ function app_loop()
 				frame.display.show()
 			end
 
-			if (data.app_data[USER_SPRITE] ~= nil) then
-				-- show the sprite
-				local spr = data.app_data[USER_SPRITE]
-				frame.display.bitmap(1, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
-				frame.display.show()
-
-				data.app_data[USER_SPRITE] = nil
-			end
-
 			if (data.app_data[CLEAR_MSG] ~= nil) then
 				-- clear the display
 				frame.display.text(" ", 1, 1)
@@ -57,11 +64,48 @@ function app_loop()
 
 				data.app_data[CLEAR_MSG] = nil
 			end
+
+			if (data.app_data[START_IMU_MSG] ~= nil) then
+				streaming = true
+				local rate = data.app_data[START_IMU_MSG].value
+				if rate > 0 then
+					stream_rate = 1 / rate
+				end
+				frame.display.text("Streaming IMU Data", 1, 1)
+				frame.display.show()
+
+				data.app_data[START_IMU_MSG] = nil
+			end
+
+			if (data.app_data[STOP_IMU_MSG] ~= nil) then
+				streaming = false
+				-- clear the display
+				frame.display.text(" ", 1, 1)
+				frame.display.show()
+
+				data.app_data[STOP_IMU_MSG] = nil
+			end
+		end
+
+		-- poll and send the raw IMU data (3-axis magnetometer, 3-axis accelerometer)
+		-- Streams until STOP_IMU_MSG is sent from phone
+		if streaming then
+			local imu_data_raw = frame.imu.raw()
+
+			-- pack imu_data table into a byte string
+			local imu_string = pack_imu(IMU_DATA_MSG, imu_data_raw)
+
+			-- send the data that was read and packed
+			pcall(frame.bluetooth.send, imu_string)
 		end
 
         -- periodic battery level updates, 120s for a camera app
         last_batt_update = battery.send_batt_if_elapsed(last_batt_update, 120)
-		frame.sleep(0.1)
+		if streaming then
+			frame.sleep(stream_rate)
+		else
+			frame.sleep(0.5)
+		end
 	end
 end
 
