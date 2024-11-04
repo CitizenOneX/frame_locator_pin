@@ -30,17 +30,41 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
   double _calibrationProgress = 0.0;
 
   // magnetometer outputs need to be calibrated/zeroed with offsets
+  int _rawMagX = 0;
+  int _rawMagY = 0;
+  int _rawMagZ = 0;
+
   double _offsetX = 0.0;
   double _offsetY = 0.0;
   double _offsetZ = 0.0;
+
+  double _calibMagX = 0.0;
+  double _calibMagY = 0.0;
+  double _calibMagZ = 0.0;
+
   // different locations on Earth need heading adjusted due to varying magnetic declination
   double _declination = 0.0;
+  double _magHeading = 0.0;
+  double _trueHeading = 0.0;
   String _headingText = '';
 
   final TextEditingController _offsetXController = TextEditingController();
   final TextEditingController _offsetYController = TextEditingController();
   final TextEditingController _offsetZController = TextEditingController();
   final TextEditingController _declinationController = TextEditingController();
+
+  // accelerometer outputs get normalised to 1.0 == 1g
+  static const int accelFactor = 4096;
+  int _rawAccelX = 0;
+  int _rawAccelY = 0;
+  int _rawAccelZ = 0;
+
+  double _normAccelX = 0.0;
+  double _normAccelY = 0.0;
+  double _normAccelZ = 0.0;
+
+  double _pitch = 0.0;
+  double _roll = 0.0;
 
 
   MainAppState() {
@@ -70,35 +94,46 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
       imuStreamSubs = RxIMU().attach(frame!.dataResponse).listen((imuData) async {
         _log.fine(() => 'Raw: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
 
+        _rawMagX = imuData.compass.$1;
+        _rawMagY = imuData.compass.$2;
+        _rawMagZ = imuData.compass.$3;
+
         // apply offsets learned through calibration
-        final calibratedX = imuData.compass.$1 + _offsetX;
-        final calibratedY = imuData.compass.$2 + _offsetY;
-        final calibratedZ = imuData.compass.$3 + _offsetZ;
+        _calibMagX = _rawMagX + _offsetX;
+        _calibMagY = _rawMagY + _offsetY;
+        _calibMagZ = _rawMagZ + _offsetZ;
 
         // accelerometer is configured so that ±2g maps to ±8192, so normalize to 1g == 1.0
-        const accelFactor = 4096.0;
-        final normAccelX = imuData.accel.$1 / accelFactor;
-        final normAccelY = imuData.accel.$2 / accelFactor;
-        final normAccelZ = imuData.accel.$3 / accelFactor;
-        _log.fine(() => 'Calibrated: compass: (${calibratedX.toStringAsFixed(1)}, ${calibratedY.toStringAsFixed(1)}, ${calibratedZ.toStringAsFixed(1)}), accel: (${normAccelX.toStringAsFixed(1)}, ${normAccelY.toStringAsFixed(1)}, ${normAccelZ.toStringAsFixed(1)}), pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
+        _rawAccelX = imuData.accel.$1;
+        _rawAccelY = imuData.accel.$2;
+        _rawAccelZ = imuData.accel.$3;
 
-        final heading = CompassHeading.calculateTiltCompensatedHeading(
-          magX: calibratedX,
-          magY: calibratedY,
-          magZ: calibratedZ,
-          accelX: normAccelX,
-          accelY: normAccelY,
-          accelZ: normAccelZ);
+        _normAccelX = _rawAccelX / accelFactor;
+        _normAccelY = _rawAccelY / accelFactor;
+        _normAccelZ = _rawAccelZ / accelFactor;
+
+        _pitch = imuData.pitch;
+        _roll = imuData.roll;
+
+        _log.fine(() => 'Calibrated: compass: (${_calibMagX.toStringAsFixed(1)}, ${_calibMagY.toStringAsFixed(1)}, ${_calibMagZ.toStringAsFixed(1)}), accel: (${_normAccelX.toStringAsFixed(1)}, ${_normAccelY.toStringAsFixed(1)}, ${_normAccelZ.toStringAsFixed(1)}), pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
+
+        _magHeading = CompassHeading.calculateTiltCompensatedHeading(
+          magX: _calibMagX,
+          magY: _calibMagY,
+          magZ: _calibMagZ,
+          accelX: _normAccelX,
+          accelY: _normAccelY,
+          accelZ: _normAccelZ);
 
         // Optionally apply magnetic declination for your location
         // (look up declination for your location: https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml)
-        final trueHeading = CompassHeading.applyDeclination(heading, _declination);
+        _trueHeading = CompassHeading.applyDeclination(_magHeading, _declination);
 
         // Get cardinal direction
-        final cardinal = CompassHeading.degreesToCardinal(trueHeading);
+        final cardinal = CompassHeading.degreesToCardinal(_trueHeading);
 
         setState(() {
-          _headingText = 'Heading: ${trueHeading.toStringAsFixed(1)}° $cardinal';
+          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal';
         });
 
         _log.fine(_headingText);
@@ -219,32 +254,81 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         body: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
                 controller: _offsetXController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'offset:X-axis', hintText: 'Magnetometer offset - X axis'),),
+                decoration: const InputDecoration(labelText: 'mag offset:X-axis', hintText: 'Magnetometer offset - X axis'),),
               TextField(
                 controller: _offsetYController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'offset:Y-axis', hintText: 'Magnetometer offset - Y axis'),),
+                decoration: const InputDecoration(labelText: 'mag offset:Y-axis', hintText: 'Magnetometer offset - Y axis'),),
               TextField(
                 controller: _offsetZController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'offset:Z-axis', hintText: 'Magnetometer offset - Z axis'),),
+                decoration: const InputDecoration(labelText: 'mag offset:Z-axis', hintText: 'Magnetometer offset - Z axis'),),
               TextField(
                 controller: _declinationController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(labelText: 'magnetic declination for your latitude/longitude', hintText: 'Magnetic Declination Estimate'),),
+
               ElevatedButton(onPressed: _runCalibration, child: const Text('Calibrate Magnetometer')),
               if (_calibrating) LinearProgressIndicator(value: _calibrationProgress),
               const Divider(),
               ElevatedButton(onPressed: _savePrefs, child: const Text('Save')),
-              const SizedBox(height: 24),
-              if (currentState == ApplicationState.running) Text(_headingText, style: const TextStyle(fontSize: 24)),
-              const Spacer(),
+
+              const SizedBox(height: 12),
+
+              if (currentState == ApplicationState.running)
+                Expanded(child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(_headingText, style: const TextStyle(fontSize: 24)),
+                    const SizedBox(height: 12),
+                    Expanded(child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Raw Accel X: $_rawAccelX'),
+                            Text('Raw Accel Y: $_rawAccelY'),
+                            Text('Raw Accel Z: $_rawAccelZ'),
+                            const SizedBox(height: 12),
+                            Text('Norm Accel X: ${_normAccelX.toStringAsFixed(2)}'),
+                            Text('Norm Accel Y: ${_normAccelY.toStringAsFixed(2)}'),
+                            Text('Norm Accel Z: ${_normAccelZ.toStringAsFixed(2)}'),
+                            const SizedBox(height: 12),
+                            Text('Pitch: ${_pitch.toStringAsFixed(2)}'),
+                            Text('Roll: ${_roll.toStringAsFixed(2)}'),
+                          ]
+                        ),),
+                        Expanded(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Raw Mag X: $_rawMagX'),
+                            Text('Raw Mag Y: $_rawMagY'),
+                            Text('Raw Mag Z: $_rawMagZ'),
+                            const SizedBox(height: 12),
+                            Text('Calib Mag X: ${_calibMagX.toStringAsFixed(2)}'),
+                            Text('Calib Mag Y: ${_calibMagY.toStringAsFixed(2)}'),
+                            Text('Calib Mag Z: ${_calibMagZ.toStringAsFixed(2)}'),
+                            const SizedBox(height: 12),
+                            Text('Mag heading: ${_magHeading.toStringAsFixed(2)}'),
+                            Text('True heading: ${_trueHeading.toStringAsFixed(2)}'),
+                          ]
+                        ),)
+                      ],
+                    ),),
+                  ]
+                ),),
+              //const Spacer(),
             ],
           ),
         ),
