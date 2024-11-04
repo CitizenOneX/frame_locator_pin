@@ -3,8 +3,11 @@ import 'dart:math';
 class CompassHeading {
   // Basic heading calculation without tilt compensation
   static double calculateBasicHeading(double x, double y) {
-    // Convert to radians and get heading angle
-    final heading = atan2(y, x);
+    // Calculate the heading angle
+    // Also rotate by -90 degrees in the XY plane because positive Y axis
+    // points forward in the glasses, so that should have a heading of 0
+    // when facing North
+    final heading = atan2(y, x) - pi/2;
 
     // Convert to degrees
     var degrees = heading * 180 / pi;
@@ -22,33 +25,24 @@ class CompassHeading {
     required double magX,
     required double magY,
     required double magZ,
-    required double accelX,
-    required double accelY,
-    required double accelZ,
-  }) {
-    // Calculate pitch and roll from accelerometer data
-    final roll = atan2(accelY, accelZ);
-    final pitch = atan2(
-      -accelX,
-      (accelY * sin(roll) + accelZ * cos(roll))
-    );
+    required double gravityX,
+    required double gravityY,
+    required double gravityZ,
+    }) {
+    //print('gX: ${gravityX.toStringAsFixed(2)}, gY: ${gravityY.toStringAsFixed(2)}, gZ: ${gravityZ.toStringAsFixed(2)}');
 
-    // Tilt compensation
-    final cosRoll = cos(roll);
-    final sinRoll = sin(roll);
-    final cosPitch = cos(pitch);
-    final sinPitch = sin(pitch);
+    double magDotGrav = magX * gravityX + magY * gravityY + magZ * gravityZ;
+    //print('magX: ${magX.toStringAsFixed(2)}, magY: ${magY.toStringAsFixed(2)}, magZ: ${magZ.toStringAsFixed(2)}');
 
-    // Compensate magnetic readings
-    final xh = magX * cosPitch +
-               magY * sinRoll * sinPitch +
-               magZ * cosRoll * sinPitch;
+    // subtract out the component of the magnetic field parallel to the gravity vector
+    double hMagX = magX - magDotGrav * gravityX;
+    double hMagY = magY - magDotGrav * gravityY;
+    //double hMagZ = magZ - magDotGrav * gravityZ;
+    //print('hMagX: ${hMagX.toStringAsFixed(2)}, hMagY: ${hMagY.toStringAsFixed(2)}, dot: ${magDotGrav.toStringAsFixed(2)}');
 
-    final yh = magY * cosRoll -
-               magZ * sinRoll;
-
-    // Calculate heading
-    var heading = atan2(yh, xh);
+    // Calculate the heading in radians (arctangent of Y / X)
+    // Rotate our heading around because +Y should have a heading of 0, rather than +X
+    double heading = atan2(hMagY, hMagX) - pi/2;
 
     // Convert to degrees
     var degrees = heading * 180 / pi;

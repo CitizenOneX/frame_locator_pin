@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:frame_imu/compass_heading.dart';
@@ -103,14 +104,21 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         _calibMagY = _rawMagY + _offsetY;
         _calibMagZ = _rawMagZ + _offsetZ;
 
-        // accelerometer is configured so that ±2g maps to ±8192, so normalize to 1g == 1.0
         _rawAccelX = imuData.accel.$1;
         _rawAccelY = imuData.accel.$2;
         _rawAccelZ = imuData.accel.$3;
 
+        // accelerometer is configured so that ±2g maps to ±8192,
+        // so normalize to 1g == 1.0
         _normAccelX = _rawAccelX / accelFactor;
         _normAccelY = _rawAccelY / accelFactor;
         _normAccelZ = _rawAccelZ / accelFactor;
+
+        // normalize to a magnitude of 1g
+        double normAccel = sqrt(_normAccelX * _normAccelX + _normAccelY * _normAccelY + _normAccelZ * _normAccelZ);
+        _normAccelX /= normAccel;
+        _normAccelY /= normAccel;
+        _normAccelZ /= normAccel;
 
         _pitch = imuData.pitch;
         _roll = imuData.roll;
@@ -121,9 +129,13 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
           magX: _calibMagX,
           magY: _calibMagY,
           magZ: _calibMagZ,
-          accelX: _normAccelX,
-          accelY: _normAccelY,
-          accelZ: _normAccelZ);
+          gravityX: _normAccelX,
+          gravityY: _normAccelY,
+          gravityZ: _normAccelZ);
+
+        // _magHeading = CompassHeading.calculateBasicHeading(
+        //   _calibMagX,
+        //   _calibMagY);
 
         // Optionally apply magnetic declination for your location
         // (look up declination for your location: https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml)
@@ -238,7 +250,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
     await prefs.setString('offsetX', _offsetXController.text);
     await prefs.setString('offsetY', _offsetYController.text);
     await prefs.setString('offsetZ', _offsetZController.text);
+    _offsetX = double.parse(_offsetXController.text);
+    _offsetY = double.parse(_offsetYController.text);
+    _offsetZ = double.parse(_offsetZController.text);
+
     await prefs.setString('declination', _declinationController.text);
+    _declination = double.parse(_declinationController.text);
   }
 
   @override
@@ -304,8 +321,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
                             Text('Norm Accel Y: ${_normAccelY.toStringAsFixed(2)}'),
                             Text('Norm Accel Z: ${_normAccelZ.toStringAsFixed(2)}'),
                             const SizedBox(height: 12),
-                            Text('Pitch: ${_pitch.toStringAsFixed(2)}'),
-                            Text('Roll: ${_roll.toStringAsFixed(2)}'),
+                            Text('Pitch: ${_pitch.toStringAsFixed(2)}°'),
+                            Text('Roll: ${_roll.toStringAsFixed(2)}°'),
                           ]
                         ),),
                         Expanded(child: Column(
@@ -320,8 +337,9 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
                             Text('Calib Mag Y: ${_calibMagY.toStringAsFixed(2)}'),
                             Text('Calib Mag Z: ${_calibMagZ.toStringAsFixed(2)}'),
                             const SizedBox(height: 12),
-                            Text('Mag heading: ${_magHeading.toStringAsFixed(2)}'),
-                            Text('True heading: ${_trueHeading.toStringAsFixed(2)}'),
+                            Text('Mag magnitude: ${(sqrt(_calibMagX*_calibMagX + _calibMagY*_calibMagY + _calibMagZ*_calibMagZ)*0.15).toStringAsFixed(2)}µT'),
+                            Text('Mag heading: ${_magHeading.toStringAsFixed(2)}°'),
+                            Text('True heading: ${_trueHeading.toStringAsFixed(2)}°'),
                           ]
                         ),)
                       ],
