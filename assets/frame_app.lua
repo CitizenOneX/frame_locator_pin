@@ -1,6 +1,7 @@
 local data = require('data.min')
 local battery = require('battery.min')
 local code = require('code.min')
+local imu = require('imu.min')
 local plain_text = require('plain_text.min')
 
 -- Phone to Frame flags
@@ -18,17 +19,6 @@ data.parsers[CLEAR_MSG] = code.parse_code
 data.parsers[START_IMU_MSG] = code.parse_code
 data.parsers[STOP_IMU_MSG] = code.parse_code
 
-function pack_imu(msg_code, imu_data_raw)
-    -- Pack msg_code as an unsigned byte, one byte of padding, and then each 14-bit signed value as a 16-bit signed integer
-	-- TODO little endian? wouldn't both be big-endian?
-    return string.pack("<Bxhhhhhh", msg_code,
-		imu_data_raw.compass.x,
-		imu_data_raw.compass.y,
-		imu_data_raw.compass.z,
-		imu_data_raw.accelerometer.x,
-		imu_data_raw.accelerometer.y,
-		imu_data_raw.accelerometer.z)
-end
 
 -- Main app loop
 function app_loop()
@@ -90,13 +80,7 @@ function app_loop()
 		-- poll and send the raw IMU data (3-axis magnetometer, 3-axis accelerometer)
 		-- Streams until STOP_IMU_MSG is sent from phone
 		if streaming then
-			local imu_data_raw = frame.imu.raw()
-
-			-- pack imu_data table into a byte string
-			local imu_string = pack_imu(IMU_DATA_MSG, imu_data_raw)
-
-			-- send the data that was read and packed
-			pcall(frame.bluetooth.send, imu_string)
+			imu.send_imu_data(IMU_DATA_MSG)
 		end
 
         -- periodic battery level updates, 120s for a camera app
