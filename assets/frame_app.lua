@@ -9,6 +9,7 @@ TEXT_MSG = 0x12
 CLEAR_MSG = 0x10
 START_IMU_MSG = 0x40
 STOP_IMU_MSG = 0x41
+POSITION_MSG = 0x50
 
 -- Frame to Phone flags
 IMU_DATA_MSG = 0x0A
@@ -18,6 +19,7 @@ data.parsers[TEXT_MSG] = plain_text.parse_plain_text
 data.parsers[CLEAR_MSG] = code.parse_code
 data.parsers[START_IMU_MSG] = code.parse_code
 data.parsers[STOP_IMU_MSG] = code.parse_code
+data.parsers[POSITION_MSG] = code.parse_code
 
 
 -- Main app loop
@@ -37,10 +39,12 @@ function app_loop()
 		if items_ready > 0 then
 
 			if (data.app_data[TEXT_MSG] ~= nil and data.app_data[TEXT_MSG].string ~= nil) then
+				local plain_text = data.app_data[TEXT_MSG]
 				local i = 0
-				for line in data.app_data[TEXT_MSG].string:gmatch("([^\n]*)\n?") do
+
+				for line in plain_text.string:gmatch("([^\n]*)\n?") do
 					if line ~= "" then
-						frame.display.text(line, 1, i * 60 + 1)
+						frame.display.text(line, plain_text.x, plain_text.y + i * 60, {color = plain_text.color, spacing = plain_text.spacing})
 						i = i + 1
 					end
 				end
@@ -61,8 +65,6 @@ function app_loop()
 				if rate > 0 then
 					stream_rate = 1 / rate
 				end
-				frame.display.text("Streaming IMU Data", 1, 1)
-				frame.display.show()
 
 				data.app_data[START_IMU_MSG] = nil
 			end
@@ -77,6 +79,14 @@ function app_loop()
 			end
 		end
 
+		if (data.app_data[POSITION_MSG] ~= nil) then
+			local px = data.app_data[POSITION_MSG].value * 4
+			frame.display.text("X", px, 200)
+			frame.display.show()
+
+			--data.app_data[POSITION_MSG] = nil
+		end
+
 		-- poll and send the raw IMU data (3-axis magnetometer, 3-axis accelerometer)
 		-- Streams until STOP_IMU_MSG is sent from phone
 		if streaming then
@@ -85,6 +95,7 @@ function app_loop()
 
         -- periodic battery level updates, 120s for a camera app
         last_batt_update = battery.send_batt_if_elapsed(last_batt_update, 120)
+
 		if streaming then
 			frame.sleep(stream_rate)
 		else

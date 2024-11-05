@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
@@ -9,6 +9,7 @@ import 'package:simple_frame_app/simple_frame_app.dart';
 import 'package:simple_frame_app/tx/code.dart';
 import 'package:simple_frame_app/tx/plain_text.dart';
 
+import 'calculator.dart';
 import 'compass_heading.dart';
 
 void main() => runApp(const MainApp());
@@ -54,6 +55,18 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
     });
 
     try {
+      // set up some sample locations
+      final currentLocation = GPSCoordinate(
+        latitude: 40.7829,
+        longitude: -73.9654,
+      );
+
+      // target is almost due east of our simulated position
+      final targetLocation = GPSCoordinate(
+        latitude: 40.7831,
+        longitude: -72.9657,
+      );
+
       // set up the RxIMU handler
       await imuStreamSubs?.cancel();
       imuStreamSubs = RxIMU().attach(frame!.dataResponse).listen((imuData) async {
@@ -71,7 +84,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         var normAccelZ = imuData.accel.$3 / accelFactor;
 
         // normalize to a magnitude of 1g
-        double normAccel = sqrt(normAccelX * normAccelX + normAccelY * normAccelY + normAccelZ * normAccelZ);
+        double normAccel = math.sqrt(normAccelX * normAccelX + normAccelY * normAccelY + normAccelZ * normAccelZ);
         normAccelX /= normAccel;
         normAccelY /= normAccel;
         normAccelZ /= normAccel;
@@ -93,16 +106,42 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         // Get cardinal direction
         final cardinal = CompassHeading.degreesToCardinal(_trueHeading);
 
+        // Show the direction of our sample target from our sample current position
+        var calc = ARCalculator();
+        final position = calc.calculateIconPosition(
+          currentLocation: currentLocation,
+          targetLocation: targetLocation,
+          compassHeading: _trueHeading * math.pi / 180,
+        );
+
+        print('Compass Heading: ${_trueHeading.toStringAsFixed(1)}° -> $position');
+
         setState(() {
-          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal';
+          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal\n${position.x}';
         });
 
         _log.fine(_headingText);
-        await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: _headingText));
+        //await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: _headingText));
+
+        // show the left arrow, the right arrow, or the target if it's in the FOV
+        switch (position.style) {
+          case IconStyle.leftArrow:
+            await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '<X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
+            break;
+          case IconStyle.location:
+            await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
+            break;
+          case IconStyle.rightArrow:
+            await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X>', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
+            break;
+        }
+
+        // TODO for the moment just send the X coordinate/4 packed into a byte
+        //await frame!.sendMessage(TxCode(msgCode: 0x50, value: (position.x ~/ 4).clamp(1, 160)));
       });
 
       // kick off the frameside IMU streaming
-      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 1)); // START_IMU_MSG, 1 per second
+      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 5)); // START_IMU_MSG, 1 per second
 
     } catch (e) {
       _log.severe(() => 'Error executing application logic: $e');
