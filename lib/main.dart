@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:frame_imu/compass_heading.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_frame_app/rx/imu.dart';
@@ -11,6 +10,7 @@ import 'package:simple_frame_app/simple_frame_app.dart';
 import 'package:simple_frame_app/tx/code.dart';
 import 'package:simple_frame_app/tx/plain_text.dart';
 
+import 'compass_heading.dart';
 import 'magnetometer_calibrator.dart';
 
 void main() => runApp(const MainApp());

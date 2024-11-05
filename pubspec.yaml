@@ -1,5 +1,5 @@
-name: frame_imu
-description: "Brilliant Labs Frame IMU Demo App"
+name: frame_locator_pin
+description: "Uses the compass heading of Frame to display pins representing locations of interest"
 publish_to: 'none'
 version: 0.1.0
 
