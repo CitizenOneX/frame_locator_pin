@@ -1,0 +1,1 @@
+_M={}function _M.parse_sprite_position(a)local b={}b.sprite_code=string.byte(a,1)b.x=string.byte(a,2)<<8|string.byte(a,3)b.y=string.byte(a,4)<<8|string.byte(a,5)b.palette_offset=string.byte(a,6)return b end;return _M

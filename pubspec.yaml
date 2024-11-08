@@ -26,5 +26,11 @@ flutter:
   - packages/simple_frame_app/lua/data.min.lua
   - packages/simple_frame_app/lua/code.min.lua
   - packages/simple_frame_app/lua/imu.min.lua
+  - packages/simple_frame_app/lua/sprite.min.lua
   - packages/simple_frame_app/lua/plain_text.min.lua
+  - assets/sprite_position.min.lua
   - assets/frame_app.lua
+  - assets/sprites/20_fav64.png
+  - assets/sprites/21_bank64.png
+  - assets/sprites/22_left64.png
+  - assets/sprites/23_right64.png

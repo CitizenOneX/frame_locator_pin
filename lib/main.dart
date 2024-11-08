@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:frame_locator_pin/tx/sprite_position.dart';
 import 'package:logging/logging.dart';
 import 'package:simple_frame_app/rx/imu.dart';
 
@@ -83,7 +84,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         var normAccelY = imuData.accel.$2 / accelFactor;
         var normAccelZ = imuData.accel.$3 / accelFactor;
 
-        // normalize to a magnitude of 1g
+        // normalize to an overall magnitude of 1g
         double normAccel = math.sqrt(normAccelX * normAccelX + normAccelY * normAccelY + normAccelZ * normAccelZ);
         normAccelX /= normAccel;
         normAccelY /= normAccel;
@@ -103,7 +104,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         // (look up declination for your location: https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml)
         _trueHeading = CompassHeading.applyDeclination(magHeading, _declination);
 
-        // Get cardinal direction
+        // Get cardinal direction for display e.g. 'ENE'
         final cardinal = CompassHeading.degreesToCardinal(_trueHeading);
 
         // Show the direction of our sample target from our sample current position
@@ -124,24 +125,31 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         //await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: _headingText));
 
         // show the left arrow, the right arrow, or the target if it's in the FOV
-        switch (position.style) {
-          case IconStyle.leftArrow:
-            await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '<X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
-            break;
-          case IconStyle.location:
-            await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
-            break;
-          case IconStyle.rightArrow:
-            await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X>', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
-            break;
-        }
+        // switch (position.style) {
+        //   case IconStyle.leftArrow:
+        //     await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '<X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
+        //     break;
+        //   case IconStyle.location:
+        //     await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
+        //     break;
+        //   case IconStyle.rightArrow:
+        //     await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X>', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
+        //     break;
+        // }
 
         // TODO for the moment just send the X coordinate/4 packed into a byte
         //await frame!.sendMessage(TxCode(msgCode: 0x50, value: (position.x ~/ 4).clamp(1, 160)));
+
+        // send the details for moving and painting sprite 0x20
+        // TODO use generic sprite position class? Or custom class allowing for text label? labeled_sprite_position?
+        await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 3));
+
+        // TODO put some info under the icon e.g. distance
+        await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x, y: 64, paletteOffset: 3));
       });
 
       // kick off the frameside IMU streaming
-      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 5)); // START_IMU_MSG, 1 per second
+      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 5)); // START_IMU_MSG, 5 per second
 
     } catch (e) {
       _log.severe(() => 'Error executing application logic: $e');
