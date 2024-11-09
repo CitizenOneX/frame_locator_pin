@@ -33,11 +33,19 @@ class ARCalculator {
   static const int displayHeight = 400;
   static const int displayCenterX = displayWidth ~/ 2;
   static const int displayCenterY = displayHeight ~/ 2;
-  static const int iconWidth = 60;
-  static const int minX = iconWidth ~/ 2;  // 30
-  static const int maxX = displayWidth - (iconWidth ~/ 2);  // 610
-  static const double fov = 20.0 * math.pi / 180; // perceived full horizontal FOV of the display (note, creeping in by iconWidth/2 should shrink this)
-  static const double maxRelativeAngle = 90.0 * math.pi / 180; // angle to exponentially compress into the FOV
+  final int _iconWidth;
+  final int _arrowWidth;
+  late final double _maxRelativeAngle;
+  late final int _minX;
+  late final int _maxX;
+  late final double _fov;
+
+  ARCalculator({required int iconWidth, required int arrowWidth, double maxRelativeAngle = 90.0}) : _iconWidth = iconWidth, _arrowWidth = arrowWidth {
+    _maxRelativeAngle = _toRadians(maxRelativeAngle); // angle to exponentially compress into the FOV
+    _minX = _iconWidth ~/ 2 + _arrowWidth + 1;  // 49
+    _maxX = displayWidth - (_iconWidth ~/ 2) - _arrowWidth;  // 592
+    _fov = (20.0 * (640-(_iconWidth+2*_arrowWidth))/(640)) * math.pi / 180; // perceived full horizontal FOV of the display (i.e., 20° crept in by iconWidth/2+arrowWidth)
+  }
 
   static double _toRadians(double degrees) => degrees * math.pi / 180;
   static double _toDegrees(double radians) => radians * 180 / math.pi;
@@ -62,7 +70,7 @@ class ARCalculator {
   /// such that +maxRelativeAngle/2 maps to +FOV/2, -maxRelativeAngle/2 maps to -FOV/2
   /// and in the middle smaller values map to angles within the FOV
   /// input and output are in radians, -pi..+pi
-  static double _compressAngle(double angle) {
+  double _compressAngle(double angle) {
     /// Compresses angles non-linearly, mapping:
     /// 0 -> 0
     /// ±pi/4 -> _toRadians(±10°) (edges of Frame display)
@@ -76,7 +84,7 @@ class ARCalculator {
 
     // Constants for the exponential function
     // These values were chosen to meet the 45° -> 10° requirement (90° of angle to be compressed into the 20° of display)
-    final k = (fov / 2) / (1 - math.exp(-(maxRelativeAngle / 2))); // Scaling factor
+    final k = (_fov / 2) / (1 - math.exp(-(_maxRelativeAngle / 2))); // Scaling factor
     const a = 1.0; // Controls the steepness of the curve
 
     // Handle the sign separately
@@ -108,20 +116,20 @@ class ARCalculator {
     relativeAngle = _compressAngle(relativeAngle);
 
     // Convert angle to pixel position
-    // Map from [-fov/2, fov/2] to [0, displayWidth]
-    final normalizedX = (relativeAngle + (fov / 2)) / fov;
+    // Map from [-fov/2, fov/2] to [1, displayWidth]
+    final normalizedX = (relativeAngle + (_fov / 2)) / _fov;
     final rawX = (normalizedX * displayWidth).round();
 
-    // Determine icon style and final position based on calculated position
+    // Determine icon style and final position based on calculated position (clamped to edges)
     IconStyle style;
     int x;
 
-    if (rawX < minX) {
+    if (rawX <= _minX) {
       style = IconStyle.leftArrow;
-      x = minX;
-    } else if (rawX > maxX) {
+      x = _minX;
+    } else if (rawX >= _maxX) {
       style = IconStyle.rightArrow;
-      x = maxX;
+      x = _maxX;
     } else {
       style = IconStyle.location;
       x = rawX;

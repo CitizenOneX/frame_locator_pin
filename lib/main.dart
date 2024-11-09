@@ -68,9 +68,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         longitude: -72.9657,
       );
 
+      // create an ARCalculator suitable for mapping bearings to pixels on the Frame display
+      var calc = ARCalculator(iconWidth: 64, arrowWidth: 16, maxRelativeAngle: 90.0);
+
       // set up the RxIMU handler
       await imuStreamSubs?.cancel();
-      imuStreamSubs = RxIMU().attach(frame!.dataResponse).listen((imuData) async {
+      imuStreamSubs = RxIMU(smoothingSamples: 5).attach(frame!.dataResponse).listen((imuData) async {
         _log.fine(() => 'Raw: compass: ${imuData.compass}, accel: ${imuData.accel}, pitch: ${imuData.pitch.toStringAsFixed(2)}, roll: ${imuData.roll.toStringAsFixed(2)}');
 
         // apply offsets learned through calibration
@@ -108,7 +111,6 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         final cardinal = CompassHeading.degreesToCardinal(_trueHeading);
 
         // Show the direction of our sample target from our sample current position
-        var calc = ARCalculator();
         final position = calc.calculateIconPosition(
           currentLocation: currentLocation,
           targetLocation: targetLocation,
@@ -145,7 +147,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 3));
 
         // TODO put some info under the icon e.g. distance
-        await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x, y: 64, paletteOffset: 3));
+        await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x-45, y: 64, paletteOffset: 3));
       });
 
       // kick off the frameside IMU streaming

@@ -90,19 +90,20 @@ function app_loop()
 			if (data.app_data[POSITION_MSG] ~= nil) then
 				local pos = data.app_data[POSITION_MSG]
 				local spr = data.app_data[pos.sprite_code]
+				local half_spr_w = spr.width // 2
+				local larrow = data.app_data[LEFT_SPRITE]
+				local rarrow = data.app_data[RIGHT_SPRITE]
 
 				if spr ~= nil then
 					print('drawing at: ' .. tostring(pos.x))
-					if pos.x < 49 then -- larrow.width + 1/2 * spr.width + 1
-						local larrow = data.app_data[LEFT_SPRITE]
+					if pos.x <= (larrow.width + half_spr_w + 1) then
 						frame.display.bitmap(1, 1, larrow.width, 2^larrow.bpp, 0, larrow.pixel_data)
 						frame.display.bitmap(larrow.width + 1, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
-					elseif pos.x < 561 then -- 640 - 1/2 * spr.width - rarrow.width + 1
-						frame.display.bitmap(pos.x, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
+					elseif pos.x < (640 - half_spr_w - rarrow.width) then
+						frame.display.bitmap(pos.x - half_spr_w, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
 					else
-						local rarrow = data.app_data[RIGHT_SPRITE]
-						frame.display.bitmap(561, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
-						frame.display.bitmap(625, 1, rarrow.width, 2^rarrow.bpp, 0, rarrow.pixel_data)
+						frame.display.bitmap(640 - spr.width - rarrow.width, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
+						frame.display.bitmap(640 - rarrow.width, 1, rarrow.width, 2^rarrow.bpp, 0, rarrow.pixel_data)
 					end
 				end
 
