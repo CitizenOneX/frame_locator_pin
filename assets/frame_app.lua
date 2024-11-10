@@ -48,6 +48,15 @@ function app_loop()
 
 		-- one or more full messages received
 		if items_ready > 0 then
+			-- Sample the imu pitch to move the POI markers vertically
+			-- TODO could sample this on every frame and render on every frame, not just when messages are received
+			local pitch = math.floor(frame.imu.direction()['pitch'] * 8)
+			if pitch < 0 then
+				pitch = 0
+			elseif pitch > 240 then
+				pitch = 240
+			end
+
 
 			if (data.app_data[TEXT_MSG] ~= nil and data.app_data[TEXT_MSG].string ~= nil) then
 				local plain_text = data.app_data[TEXT_MSG]
@@ -55,7 +64,7 @@ function app_loop()
 
 				for line in plain_text.string:gmatch("([^\n]*)\n?") do
 					if line ~= "" then
-						frame.display.text(line, plain_text.x, plain_text.y + i * 60, {color = plain_text.color, spacing = plain_text.spacing})
+						frame.display.text(line, plain_text.x, plain_text.y + i * 60 + pitch, {color = plain_text.color, spacing = plain_text.spacing})
 						i = i + 1
 					end
 				end
@@ -97,13 +106,13 @@ function app_loop()
 				if spr ~= nil then
 					print('drawing at: ' .. tostring(pos.x))
 					if pos.x <= (larrow.width + half_spr_w + 1) then
-						frame.display.bitmap(1, 1, larrow.width, 2^larrow.bpp, pos.palette_offset, larrow.pixel_data)
-						frame.display.bitmap(larrow.width + 1, 1, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
+						frame.display.bitmap(1, 1 + pitch, larrow.width, 2^larrow.bpp, pos.palette_offset, larrow.pixel_data)
+						frame.display.bitmap(larrow.width + 1, 1 + pitch, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
 					elseif pos.x < (640 - half_spr_w - rarrow.width) then
-						frame.display.bitmap(pos.x - half_spr_w, 1, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
+						frame.display.bitmap(pos.x - half_spr_w, 1 + pitch, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
 					else
-						frame.display.bitmap(640 - spr.width - rarrow.width, 1, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
-						frame.display.bitmap(640 - rarrow.width, 1, rarrow.width, 2^rarrow.bpp, pos.palette_offset, rarrow.pixel_data)
+						frame.display.bitmap(640 - spr.width - rarrow.width, 1 + pitch, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
+						frame.display.bitmap(640 - rarrow.width, 1 + pitch, rarrow.width, 2^rarrow.bpp, pos.palette_offset, rarrow.pixel_data)
 					end
 				end
 
