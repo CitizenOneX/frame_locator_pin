@@ -124,29 +124,14 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         });
 
         _log.fine(_headingText);
-        //await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: _headingText));
-
-        // show the left arrow, the right arrow, or the target if it's in the FOV
-        // switch (position.style) {
-        //   case IconStyle.leftArrow:
-        //     await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '<X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
-        //     break;
-        //   case IconStyle.location:
-        //     await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
-        //     break;
-        //   case IconStyle.rightArrow:
-        //     await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: 'X>', x: position.x-29, y: 200, paletteOffset: 7)); // 7=orange
-        //     break;
-        // }
-
-        // TODO for the moment just send the X coordinate/4 packed into a byte
-        //await frame!.sendMessage(TxCode(msgCode: 0x50, value: (position.x ~/ 4).clamp(1, 160)));
 
         // send the details for moving and painting sprite 0x20
         // TODO use generic sprite position class? Or custom class allowing for text label? labeled_sprite_position?
-        await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 3));
+        // TODO paletteOffset here is added to the pixel index color value of our sprite, which is 1(white), so 6 becomes 7(orange)
+        await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 6));
 
         // TODO put some info under the icon e.g. distance
+        // paletteOffset here is just the 0-based color index from the palette, so 3 is 4th(red)
         await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x-45, y: 64, paletteOffset: 3));
       });
 

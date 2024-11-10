@@ -185,7 +185,7 @@ packages:
       path: "../simple_frame_app"
       relative: true
     source: path
-    version: "1.4.1"
+    version: "1.5.1"
   sky_engine:
     dependency: transitive
     description: flutter

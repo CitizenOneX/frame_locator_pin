@@ -97,13 +97,13 @@ function app_loop()
 				if spr ~= nil then
 					print('drawing at: ' .. tostring(pos.x))
 					if pos.x <= (larrow.width + half_spr_w + 1) then
-						frame.display.bitmap(1, 1, larrow.width, 2^larrow.bpp, 0, larrow.pixel_data)
-						frame.display.bitmap(larrow.width + 1, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
+						frame.display.bitmap(1, 1, larrow.width, 2^larrow.bpp, pos.palette_offset, larrow.pixel_data)
+						frame.display.bitmap(larrow.width + 1, 1, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
 					elseif pos.x < (640 - half_spr_w - rarrow.width) then
-						frame.display.bitmap(pos.x - half_spr_w, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
+						frame.display.bitmap(pos.x - half_spr_w, 1, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
 					else
-						frame.display.bitmap(640 - spr.width - rarrow.width, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
-						frame.display.bitmap(640 - rarrow.width, 1, rarrow.width, 2^rarrow.bpp, 0, rarrow.pixel_data)
+						frame.display.bitmap(640 - spr.width - rarrow.width, 1, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
+						frame.display.bitmap(640 - rarrow.width, 1, rarrow.width, 2^rarrow.bpp, pos.palette_offset, rarrow.pixel_data)
 					end
 				end
 
