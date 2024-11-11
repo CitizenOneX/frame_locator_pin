@@ -4,7 +4,7 @@ Overlays AR location / navigation pins representing multiple points of interest 
 
 Currently uses hard-coded sample latitude/longitude coordinates for the current user position and two sample POIs for the purposes of the demo. (Using the phone's GPS for the current user location, and a mapping service to search for and get coordinates of points of interest - or a friend's live location - is left as an exercise.)
 
-Each POI can have a different icon (PNGs are in assets/sprites), color and text label.
+Each POI can have a different icon (PNGs are in assets/sprites), color and dynamic text label.
 
 ### Frameshot
 
