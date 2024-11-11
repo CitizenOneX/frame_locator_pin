@@ -17,15 +17,17 @@ class DisplayPosition {
   final int x;      // Pixel position (1-640)
   final IconStyle style;  // Icon style based on position
   final double bearing;  // Actual bearing to target in degrees
+  final double distance; // Distance in meters to the target
 
   DisplayPosition({
     required this.x,
     required this.style,
     required this.bearing,
+    required this.distance,
   });
 
   @override
-  String toString() => 'DisplayPosition(x: $x, style: $style, bearing: ${bearing.toStringAsFixed(1)}°)';
+  String toString() => 'DisplayPosition(x: $x, style: $style, bearing: ${bearing.toStringAsFixed(1)}°, distance: ${bearing.toStringAsFixed(0)}m)';
 }
 
 class ARCalculator {
@@ -64,6 +66,31 @@ class ARCalculator {
     var bearing = math.atan2(y, x);
 
     return (bearing + 2 * math.pi) % (2 * math.pi);
+  }
+
+  double calculateDistance(GPSCoordinate coord1, GPSCoordinate coord2) {
+    // Earth's radius in meters
+    const double earthRadius = 6371000;
+
+    // Convert latitude and longitude from degrees to radians
+    final lat1 = coord1.latitude * math.pi / 180;
+    final lon1 = coord1.longitude * math.pi / 180;
+    final lat2 = coord2.latitude * math.pi / 180;
+    final lon2 = coord2.longitude * math.pi / 180;
+
+    // Differences in coordinates
+    final dLat = lat2 - lat1;
+    final dLon = lon2 - lon1;
+
+    // Haversine formula
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+              math.cos(lat1) * math.cos(lat2) *
+              math.sin(dLon / 2) * math.sin(dLon / 2);
+
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+
+    // Calculate the distance
+    return earthRadius * c;
   }
 
   /// Compresses the relative angle into the FOV range using an exponential function
@@ -139,6 +166,7 @@ class ARCalculator {
       x: x,
       style: style,
       bearing: _toDegrees(targetBearing),
+      distance: calculateDistance(currentLocation, targetLocation),
     );
   }
 }

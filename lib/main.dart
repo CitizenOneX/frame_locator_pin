@@ -55,22 +55,24 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
     });
 
     try {
-      // set up some sample locations
+      // set up some sample locations.
+      // If sampling the GPS, this should go inside the IMU streaming handler.
+      // For fixed sample location this is fine though.
       final currentLocation = GPSCoordinate(
-        latitude: 40.7829,
-        longitude: -73.9654,
+        latitude: -53.796173,
+        longitude: 121.1773106,
       );
 
-      // target is almost due east of our simulated position
+      // one nearby location, use the favorite icon
       final favLocation = GPSCoordinate(
-        latitude: 40.7831,
-        longitude: -72.9657,
+        latitude: -53.795722,
+        longitude: 121.1775937,
       );
 
-      // target is almost due east of our simulated position
+      // another nearby location, use the bank icon
       final bankLocation = GPSCoordinate(
-        latitude: 42.3831,
-        longitude: -71.9657,
+        latitude: -53.791576,
+        longitude: 121.1849747,
       );
 
       // create an ARCalculator suitable for mapping bearings to pixels on the Frame display
@@ -130,30 +132,22 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         );
 
         setState(() {
-          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal\n${favPosition.x}';
+          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal';
         });
 
         _log.fine(_headingText);
-
-        // send the details for moving and painting sprite 0x20
-        // paletteOffset here is added to the pixel index color value of our sprite, which is 1(white), so 6 becomes 7(orange)
-        //await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 6));
-
-        // put some info under the icon e.g. distance
-        // paletteOffset here is just the 0-based color index from the palette, so 3 is 4th(red)
-        //await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x-45, y: 64, paletteOffset: 3));
 
         await frame!.sendMessage(
           TxMultiPoi(
             msgCode: 0x50,
             pois: [
-              Poi(spriteCode: 0x20, x: favPosition.x, paletteOffset: 12, label: '200m'),
-              Poi(spriteCode: 0x21, x: bankPosition.x, paletteOffset: 7, label: '1.2km'),
+              Poi(spriteCode: 0x20, x: favPosition.x, paletteOffset: 12, label: '${favPosition.distance.toStringAsFixed(0)}m'),
+              Poi(spriteCode: 0x21, x: bankPosition.x, paletteOffset: 7, label: '${bankPosition.distance.toStringAsFixed(0)}m'),
             ]));
       });
 
       // kick off the frameside IMU streaming
-      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 10)); // START_IMU_MSG, 5 per second
+      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 10)); // START_IMU_MSG, 10 per second
 
     } catch (e) {
       _log.severe(() => 'Error executing application logic: $e');
