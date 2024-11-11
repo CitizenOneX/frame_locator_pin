@@ -2,13 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:frame_locator_pin/tx/sprite_position.dart';
+import 'package:frame_locator_pin/tx/multi_poi.dart';
 import 'package:logging/logging.dart';
 import 'package:simple_frame_app/rx/imu.dart';
 
 import 'package:simple_frame_app/simple_frame_app.dart';
 import 'package:simple_frame_app/tx/code.dart';
-import 'package:simple_frame_app/tx/plain_text.dart';
 
 import 'calculator.dart';
 import 'compass_heading.dart';
@@ -63,9 +62,15 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
       );
 
       // target is almost due east of our simulated position
-      final targetLocation = GPSCoordinate(
+      final favLocation = GPSCoordinate(
         latitude: 40.7831,
         longitude: -72.9657,
+      );
+
+      // target is almost due east of our simulated position
+      final bankLocation = GPSCoordinate(
+        latitude: 42.3831,
+        longitude: -71.9657,
       );
 
       // create an ARCalculator suitable for mapping bearings to pixels on the Frame display
@@ -110,33 +115,45 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState {
         // Get cardinal direction for display e.g. 'ENE'
         final cardinal = CompassHeading.degreesToCardinal(_trueHeading);
 
-        // Show the direction of our sample target from our sample current position
-        final position = calc.calculateIconPosition(
+        // Show the direction of our sample targets from our sample current position
+        final favPosition = calc.calculateIconPosition(
           currentLocation: currentLocation,
-          targetLocation: targetLocation,
+          targetLocation: favLocation,
           compassHeading: _trueHeading * math.pi / 180,
         );
 
-        print('Compass Heading: ${_trueHeading.toStringAsFixed(1)}° -> $position');
+        // Show the direction of our sample targets from our sample current position
+        final bankPosition = calc.calculateIconPosition(
+          currentLocation: currentLocation,
+          targetLocation: bankLocation,
+          compassHeading: _trueHeading * math.pi / 180,
+        );
 
         setState(() {
-          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal\n${position.x}';
+          _headingText = 'Heading: ${_trueHeading.toStringAsFixed(1)}° $cardinal\n${favPosition.x}';
         });
 
         _log.fine(_headingText);
 
         // send the details for moving and painting sprite 0x20
-        // TODO use generic sprite position class? Or custom class allowing for text label? labeled_sprite_position?
-        // TODO paletteOffset here is added to the pixel index color value of our sprite, which is 1(white), so 6 becomes 7(orange)
-        await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 6));
+        // paletteOffset here is added to the pixel index color value of our sprite, which is 1(white), so 6 becomes 7(orange)
+        //await frame!.sendMessage(TxSpritePosition(msgCode: 0x50, spriteCode: 0x20, x: position.x, paletteOffset: 6));
 
-        // TODO put some info under the icon e.g. distance
+        // put some info under the icon e.g. distance
         // paletteOffset here is just the 0-based color index from the palette, so 3 is 4th(red)
-        await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x-45, y: 64, paletteOffset: 3));
+        //await frame!.sendMessage(TxPlainText(msgCode: 0x12, text: '200m', x: position.x-45, y: 64, paletteOffset: 3));
+
+        await frame!.sendMessage(
+          TxMultiPoi(
+            msgCode: 0x50,
+            pois: [
+              Poi(spriteCode: 0x20, x: favPosition.x, paletteOffset: 12, label: '200m'),
+              Poi(spriteCode: 0x21, x: bankPosition.x, paletteOffset: 7, label: '1.2km'),
+            ]));
       });
 
       // kick off the frameside IMU streaming
-      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 5)); // START_IMU_MSG, 5 per second
+      await frame!.sendMessage(TxCode(msgCode: 0x40, value: 10)); // START_IMU_MSG, 5 per second
 
     } catch (e) {
       _log.severe(() => 'Error executing application logic: $e');

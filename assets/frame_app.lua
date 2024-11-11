@@ -4,7 +4,7 @@ local code = require('code.min')
 local imu = require('imu.min')
 local sprite = require('sprite.min')
 local plain_text = require('plain_text.min')
-local sprite_position = require('sprite_position.min')
+local multi_poi = require('multi_poi')
 
 
 -- Phone to Frame flags
@@ -12,11 +12,11 @@ TEXT_MSG = 0x12
 CLEAR_MSG = 0x10
 START_IMU_MSG = 0x40
 STOP_IMU_MSG = 0x41
-POSITION_MSG = 0x50
 FAV_SPRITE = 0x20
 BANK_SPRITE = 0x21
 LEFT_SPRITE = 0x22
 RIGHT_SPRITE = 0x23
+MULTI_POI_MSG = 0x50
 
 -- Frame to Phone flags
 IMU_DATA_MSG = 0x0A
@@ -26,11 +26,11 @@ data.parsers[TEXT_MSG] = plain_text.parse_plain_text
 data.parsers[CLEAR_MSG] = code.parse_code
 data.parsers[START_IMU_MSG] = code.parse_code
 data.parsers[STOP_IMU_MSG] = code.parse_code
-data.parsers[POSITION_MSG] = sprite_position.parse_sprite_position
 data.parsers[FAV_SPRITE] = sprite.parse_sprite
 data.parsers[BANK_SPRITE] = sprite.parse_sprite
 data.parsers[LEFT_SPRITE] = sprite.parse_sprite
 data.parsers[RIGHT_SPRITE] = sprite.parse_sprite
+data.parsers[MULTI_POI_MSG] = multi_poi.parse_multi_poi
 
 
 -- Main app loop
@@ -95,28 +95,36 @@ function app_loop()
 				data.app_data[STOP_IMU_MSG] = nil
 			end
 
-			-- a position update for a sprite
-			if (data.app_data[POSITION_MSG] ~= nil) then
-				local pos = data.app_data[POSITION_MSG]
-				local spr = data.app_data[pos.sprite_code]
-				local half_spr_w = spr.width // 2
+			-- position update for all the POIs we're tracking
+			if (data.app_data[MULTI_POI_MSG] ~= nil) then
+				local poi_list = data.app_data[MULTI_POI_MSG].poi_list
 				local larrow = data.app_data[LEFT_SPRITE]
 				local rarrow = data.app_data[RIGHT_SPRITE]
 
-				if spr ~= nil then
-					print('drawing at: ' .. tostring(pos.x))
-					if pos.x <= (larrow.width + half_spr_w + 1) then
-						frame.display.bitmap(1, 1 + pitch, larrow.width, 2^larrow.bpp, pos.palette_offset, larrow.pixel_data)
-						frame.display.bitmap(larrow.width + 1, 1 + pitch, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
-					elseif pos.x < (640 - half_spr_w - rarrow.width) then
-						frame.display.bitmap(pos.x - half_spr_w, 1 + pitch, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
-					else
-						frame.display.bitmap(640 - spr.width - rarrow.width, 1 + pitch, spr.width, 2^spr.bpp, pos.palette_offset, spr.pixel_data)
-						frame.display.bitmap(640 - rarrow.width, 1 + pitch, rarrow.width, 2^rarrow.bpp, pos.palette_offset, rarrow.pixel_data)
+				for i,poi in ipairs(poi_list) do
+					local spr = data.app_data[poi.sprite_code]
+					local half_spr_w = spr.width // 2
+
+					-- draw the POI sprite
+					if spr ~= nil then
+						if poi.x <= (larrow.width + half_spr_w + 1) then
+							frame.display.bitmap(1, 1 + pitch, larrow.width, 2^larrow.bpp, poi.palette_offset, larrow.pixel_data)
+							frame.display.bitmap(larrow.width + 1, 1 + pitch, spr.width, 2^spr.bpp, poi.palette_offset, spr.pixel_data)
+						elseif poi.x < (640 - half_spr_w - rarrow.width) then
+							frame.display.bitmap(poi.x - half_spr_w, 1 + pitch, spr.width, 2^spr.bpp, poi.palette_offset, spr.pixel_data)
+						else
+							frame.display.bitmap(640 - spr.width - rarrow.width, 1 + pitch, spr.width, 2^spr.bpp, poi.palette_offset, spr.pixel_data)
+							frame.display.bitmap(640 - rarrow.width, 1 + pitch, rarrow.width, 2^rarrow.bpp, poi.palette_offset, rarrow.pixel_data)
+						end
+					end
+
+					-- if there's a label then draw it under the sprite too
+					if poi.label ~= nil then
+						frame.display.text(poi.label, poi.x - 45, 64 + pitch, {color = 'WHITE', spacing = 4})
 					end
 				end
 
-				data.app_data[POSITION_MSG] = nil
+				data.app_data[MULTI_POI_MSG] = nil
 			end
 
 			-- present the updated display
